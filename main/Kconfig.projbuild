@@ -1,0 +1,42 @@
+menu "A.I.Lab App"
+
+choice AILAB_PLATFORM_WORKING_MODEL
+	prompt "Platform working mode config"
+	default PLATFORM_CODEC_ES8388
+    help
+       "audio interface optional:[es8388/nv110b/du161/ap80x/es7148/null]"
+	   
+config PLATFORM_NORMAL_MODE
+    bool "Normal mode"
+config PLATFORM_BLE_MODE
+	bool "Bluetooth Low Energy(BLE) mode"
+    select BT_ENABLED
+config PLATFORM_USER_UPGRADE_MODE
+    bool "User upgrade mode"
+config PLATFORM_FACTORY_UPGRADE_MODE
+	bool "Factory upgrade mode"
+endchoice
+
+
+choice AILAB_PLATFORM_CODEC_OPTION
+    prompt "Codec Selecet"
+    default PLATFORM_CODEC_ES8388
+    help
+       "audio interface optional:[ES8388/ES8374/ZL38063/RT5616/ES7148/null]"
+config PLATFORM_CODEC_ES8388
+    bool "ES8388 Codec"
+config PLATFORM_CODEC_ES8374
+    bool "ES8374 Codec"
+config PLATFORM_CODEC_ZL38063
+    bool "ZL38063 Codec"
+config PLATFORM_CODEC_RT5616
+    bool "RT5616 Codec"
+config PLATFORM_CODEC_ES7148
+    bool "ES7148 Codec"
+endchoice
+
+config BT_ENABLED
+    default n if PLATFORM_NORMAL_MODE
+
+endmenu
+
