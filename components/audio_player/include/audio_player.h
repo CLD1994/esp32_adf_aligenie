@@ -1,8 +1,17 @@
-#ifndef _URANUS_AUDIO_SERVICE_H
-#define _URANUS_AUDIO_SERVICE_H
+#ifndef _URANUS_AUDIO_PLAYER_H
+#define _URANUS_AUDIO_PLAYER_H
 
 #include "audio_element.h"
 #include "audio_pipeline.h"
+
+typedef enum {
+    PLAYER_STATE_INIT = 0,
+    PLAYER_STATE_RUNNING,
+    PLAYER_STATE_PAUSED,
+    PLAYER_STATE_STOPPED,
+    PLAYER_STATE_FINISHED,
+    PLAYER_STATE_ERROR
+} audio_player_state_t;
 
 typedef enum {
     AUDIO_SRC_UNKNOWN = 0,
@@ -24,10 +33,14 @@ typedef struct {
 audio_player_handle_t audio_player_create(audio_player_cfg_t *config);
 esp_err_t audio_player_destroy(audio_player_handle_t player_handle);
 
-esp_err_t audio_player_start(audio_player_handle_t player_handle, const char *url);
+esp_err_t audio_player_start(audio_player_handle_t player_handle, const char *uri);
 esp_err_t audio_player_stop(audio_player_handle_t player_handle);
 esp_err_t audio_player_resume(audio_player_handle_t player_handle);
 esp_err_t audio_player_pause(audio_player_handle_t player_handle);
+esp_err_t audio_player_wait_for_finish(audio_player_handle_t player_handle, TickType_t ticks_to_wait);
+
+esp_err_t audio_player_ws_put_data(audio_player_handle_t player_handle, char *buffer, int buf_size);
+esp_err_t audio_palyer_ws_put_done(audio_player_handle_t player_handle);
 
 #endif
 

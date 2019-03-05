@@ -22,9 +22,25 @@ struct audio_manager {
     audio_manager_state_callback state_callback;
 };
 
-static esp_err_t _audio_player_callback(audio_player_handle_t player_handle, audio_element_state_t status) {
+static esp_err_t url_audio_player_callback(audio_player_handle_t player_handle, audio_element_state_t status) {
     if(s_audio_manager_handle->state_callback) {
-        return s_audio_manager_handle->state_callback(player_handle, status);
+        s_audio_manager_handle->state_callback(AUDIO_STREAM_URL, status);
+    }
+
+    return ESP_OK;
+}
+
+static esp_err_t tts_audio_player_callback(audio_player_handle_t player_handle, audio_element_state_t status) {
+    if(s_audio_manager_handle->state_callback) {
+        s_audio_manager_handle->state_callback(AUDIO_STREAM_TTS, status);
+    }
+
+    return ESP_OK;
+}
+
+static esp_err_t prompt_audio_player_callback(audio_player_handle_t player_handle, audio_element_state_t status) {
+    if(s_audio_manager_handle->state_callback) {
+        s_audio_manager_handle->state_callback(AUDIO_STREAM_PROMPT, status);
     }
 
     return ESP_OK;
@@ -70,20 +86,18 @@ esp_err_t audio_manager_init(audio_manager_cfg_t *config) {
         return ESP_FAIL;
     }
 
-    s_audio_manager_handle->state_callback = config->state_callback;
-
     audio_player_cfg_t url_player_cfg = {
         .rb_size = 8*1024,
-        .callback = _audio_player_callback,
+        .callback = url_audio_player_callback,
     };
 
     audio_player_cfg_t tts_player_cfg = {
         .rb_size = 8*1024,
-        .callback = _audio_player_callback,
+        .callback = tts_audio_player_callback,
     };
     audio_player_cfg_t prompt_player_cfg = {
         .rb_size = 8*1024,
-        .callback = _audio_player_callback,
+        .callback = prompt_audio_player_callback,
     };
 
     bool success = (
@@ -111,69 +125,129 @@ esp_err_t audio_manager_deinit() {
     audio_hal_ctrl_codec(s_audio_manager_handle->audio_hal, AUDIO_HAL_CODEC_MODE_BOTH, AUDIO_HAL_CTRL_STOP);
     audio_hal_deinit(s_audio_manager_handle->audio_hal, 0);
 
+    audio_free(s_audio_manager_handle);
+    s_audio_manager_handle = NULL;
     return ESP_OK;
 }
 
-esp_err_t audio_manager_start(audio_player_type_t type, const char *url) {
+esp_err_t audio_manager_start(audio_player_type_t type, const char *uri) {
+
+    esp_err_t err = ESP_FAIL;
 
     switch(type) {
         case AUDIO_STREAM_URL:
+            err = audio_player_start(s_audio_manager_handle->url_player_handle, uri);
             break;
         case AUDIO_STREAM_TTS:
-            
+            err = audio_player_start(s_audio_manager_handle->tts_player_handle, uri);
             break;
         case AUDIO_STREAM_PROMPT:
-            audio_player_start(s_audio_manager_handle->prompt_player_handle, url);
+            err = audio_player_start(s_audio_manager_handle->prompt_player_handle, uri);
             break;
         default:
+            err = ESP_FAIL;
             break;
     }
 
-    return ESP_OK;
+    return err;
 }
 
 esp_err_t audio_manager_stop(audio_player_type_t type) {
 
+    esp_err_t err = ESP_FAIL;
+
     switch(type) {
         case AUDIO_STREAM_URL:
+            err = audio_player_stop(s_audio_manager_handle->url_player_handle);
             break;
         case AUDIO_STREAM_TTS:
+            err = audio_player_stop(s_audio_manager_handle->tts_player_handle);
             break;
         case AUDIO_STREAM_PROMPT:
+            err = audio_player_stop(s_audio_manager_handle->prompt_player_handle);
             break;
         default:
+            err = ESP_FAIL;
             break;
     }
 
-    return ESP_OK;
+    return err;
 }
 
 esp_err_t audio_manager_resume(audio_player_type_t type) {
+
+    esp_err_t err = ESP_FAIL;
+
     switch(type) {
         case AUDIO_STREAM_URL:
+            err = audio_player_resume(s_audio_manager_handle->url_player_handle);
             break;
         case AUDIO_STREAM_TTS:
+            err = audio_player_resume(s_audio_manager_handle->tts_player_handle);
             break;
         case AUDIO_STREAM_PROMPT:
+            err = audio_player_resume(s_audio_manager_handle->prompt_player_handle);
             break;
         default:
+            err = ESP_FAIL;
             break;
     }
-    return ESP_OK;
+    return err;
 }
 
 esp_err_t audio_manager_pause(audio_player_type_t type) {
+
+    esp_err_t err = ESP_FAIL;
+
     switch(type) {
         case AUDIO_STREAM_URL:
+            err = audio_player_pause(s_audio_manager_handle->url_player_handle);
             break;
         case AUDIO_STREAM_TTS:
+            err = audio_player_pause(s_audio_manager_handle->tts_player_handle);
             break;
         case AUDIO_STREAM_PROMPT:
+            err = audio_player_pause(s_audio_manager_handle->prompt_player_handle);
             break;
         default:
+            err = ESP_FAIL;
             break;
     }
-    return ESP_OK;
+    return err;
+}
+
+esp_err_t audio_manager_ws_put_data(char *buffer, int buf_size) {
+    return audio_player_ws_put_data(s_audio_manager_handle->tts_player_handle, buffer, buf_size);
+}
+
+esp_err_t audio_manager_ws_put_done() {
+    return audio_palyer_ws_put_done(s_audio_manager_handle->tts_player_handle);
+}
+
+esp_err_t audio_manager_wait_for_finish(audio_player_type_t type, TickType_t ticks_to_wait) {
+
+    audio_player_handle_t player_handle;
+
+    switch(type) {
+        case AUDIO_STREAM_URL:
+            player_handle = s_audio_manager_handle->url_player_handle;
+            break;
+        case AUDIO_STREAM_TTS:
+            player_handle = s_audio_manager_handle->tts_player_handle;
+            break;
+        case AUDIO_STREAM_PROMPT:
+            player_handle = s_audio_manager_handle->prompt_player_handle;
+            break;
+        default:
+            player_handle = NULL;
+            break;
+    }
+
+    return audio_player_wait_for_finish(player_handle, ticks_to_wait);
+}
+
+void audio_manager_register_state_callback(audio_manager_state_callback state_callback) {
+    s_audio_manager_handle->state_callback = state_callback;
 }
 
 audio_focus_state_t audio_manager_request_focus(audio_player_type_t type) {
